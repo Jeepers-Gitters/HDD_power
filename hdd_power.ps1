@@ -1,50 +1,89 @@
-# https://www.aggsoft.com/serial-port-monitor/how-to-check-com-port-in-windows.htm
-# [System.IO.Ports.SerialPort]::getportnames() 
-# Get-PnpDevice -FriendlyName '*COM*' | Select-Object FriendlyName,InstanceId
-# $SerialPort=New-Object System.IO.Ports.SerialPort 'COM3',9600,'None',8,one;
-# $SerialPort.Open();
-# $SerialPort.WriteLine('hello');
-# Start-Sleep -Milliseconds 200;
-# $resp = $SerialPort.ReadExisting();
-# $SerialPort.Close();
-# $resp
-# A0 01 01 A2 open relay, A0 01 00 A1 close relay (attention: commands' format must be hex)
-
-# Procedure to detect USB-COM assignment
-$MyPort = (Get-PnpDevice -Class Ports -PresentOnly -FriendlyName "USB-SERIAL*").Name
-$DefaultComPort = "COM5"
-$ComPort = $MyPort.Substring($MyPort.IndexOf("COM"), $DefaultComPort.Length)
 #
-# Write-Host "Relay connected to $ComPort"
+# A0 01 01 A2 open relay, A0 01 00 A1 close relay (attention: commands' format must be hex)
+# Errors
+$ScriptSuccess = 0
+$NoPortsFound = 1
+$UserQuit = 2
+#
+# Serial Port Setting
+#
+# ComPort Number, Baudrate, Parity, Bits, Stopbit
+# $ComPortParams = "9600, 'None', 8, one"
+#
+$DebugPreference = "Continue"
+#
+function Write-ComPort {
+    param (
+      $Port,
+      $Action
+      )
+  # We init parameters in this function to decrease a number of parameters
+  $SerialPort = New-Object System.IO.Ports.SerialPort $Port, 9600, 'None', 8, one
+  #
+  # No check for open success as script exits in case of problem with chosen COM port
+  #
+  $SerialPort.Open()
+  [string]$CheckPortInit = $SerialPort.BaudRate, $SerialPort.DataBits, $SerialPort.Parity, $SerialPort.StopBits
+  Write-Debug "Port $Port settings:$CheckPortInit"
+  $SerialPort.Write($Action, 0, $Action.Count)
+  $CommandSent = [System.BitConverter]::ToString($Action)
+  Write-Debug "Command $CommandSent sent to $Port"
+  $SerialPort.Close()
+  Write-Debug "$Port closed."
+  }
+#
+# Procedure to detect USB-COM assignment
+# 
+$CommPorts=[string[]]@([System.IO.Ports.SerialPort]::getportnames())
+$CommPortsNumber = $CommPorts.Count
+if ( $CommPortsNumber -eq 0 ) {
+  Write-Host "No COM ports found. Exiting"
+  exit $NoPortsFound
+  }
+Write-Debug "$CommPortsNumber COM ports detected: $CommPorts" 
+#
+# Friendly name returned would look like this:
+# USB-SERIAL CH340 (COM5)
+#
+$MyPort = (Get-PnpDevice -Class Ports -PresentOnly -FriendlyName "USB-SERIAL*").Name
+Write-Debug $MyPort
+#
+# We need to get a text between brackets
+# This is a regex to detect such text
+$SearchPattern = '(?<=\().+?(?=\))'
+$ComPort = [regex]::Matches($MyPort, $SearchPattern).Value
+#
+Write-Debug "Relay connected to $ComPort"
 # LCOS commands
 [Byte[]] $PowerOn = 0xA0, 0x01, 0x01, 0xA2
 [Byte[]] $PowerOff = 0xA0, 0x01, 0x00, 0xA1
 # Init dialog
-$Title = "Command to control HDD via $ComPort"
-$Prompt = "Select your command:"
-$Choices = [System.Management.Automation.Host.ChoiceDescription[]] @("&Up", "&Down", "&Cancel")
-$Default = 2
+$MenuTitle = "Command to control HDD power via $ComPort"
+$MenuPrompt = "Select your command:"
+$PowerUp = New-Object System.Management.Automation.Host.ChoiceDescription '&Up', 'Switch on HDD power'
+$PowerDown = New-Object System.Management.Automation.Host.ChoiceDescription '&Down', 'Switch off HDD power'
+$QuitMenu = New-Object System.Management.Automation.Host.ChoiceDescription '&Cancel', 'Cancel and Quit'
+$MenuChoices = [System.Management.Automation.Host.ChoiceDescription[]] @($PowerUp, $PowerDown, $QuitMenu)
+$MenuDefault = 2
 
 # Prompt for the choice
-$Choice = $host.UI.PromptForChoice($Title, $Prompt, $Choices, $Default)
+$UserChoice = $host.UI.PromptForChoice($MenuTitle, $MenuPrompt, $MenuChoices, $MenuDefault)
 
 # Action based on the choice
-switch($Choice)
+switch($UserChoice)
 {
     0 { Write-Host "Power up HDD"
-        $Buffer = $PowerOn
+        $Action = $PowerOn
         }
     1 { Write-Host "Power down HDD"
-        $Buffer = $PowerOff
+        $Action = $PowerOff
         }
     2 { Write-Host "Cancel and quit"
-        exit
+        exit $UserQuit
         }
 }
-$SerialPort=New-Object System.IO.Ports.SerialPort $ComPort, 9600, 'None', 8, one
-$SerialPort.Open()
-Start-Sleep -Milliseconds 250
-$SerialPort.Write($Buffer, 0, $Buffer.Count)
-$SerialPort.Close()
+
+Write-ComPort -Port $ComPort -Action $Action
 Write-Host "Done!"
 Start-Sleep -Seconds 3
+exit $ScriptSuccess

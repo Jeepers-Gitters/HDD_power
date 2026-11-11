@@ -1,16 +1,24 @@
 #
 # A0 01 01 A2 open relay, A0 01 00 A1 close relay (attention: commands' format must be hex)
+#
+# LCOS commands
+#
+[Byte[]] $PowerOn = 0xA0, 0x01, 0x01, 0xA2
+[Byte[]] $PowerOff = 0xA0, 0x01, 0x00, 0xA1
+[Byte[]] $RelayStatus = 0xFF
+#
 # Errors
+#
 $ScriptSuccess = 0
 $NoPortsFound = 1
 $UserQuit = 2
 #
-# Serial Port Setting
+# Serial Port Settings
 #
 # ComPort Number, Baudrate, Parity, Bits, Stopbit
 # $ComPortParams = "9600, 'None', 8, one"
 #
-$DebugPreference = "Continue"
+# $DebugPreference = "Continue"
 #
 function Write-ComPort {
     param (
@@ -42,34 +50,36 @@ if ( $CommPortsNumber -eq 0 ) {
   }
 Write-Debug "$CommPortsNumber COM ports detected: $CommPorts" 
 #
-# Friendly name returned would look like this:
+# Friendly name returned looks like this:
 # USB-SERIAL CH340 (COM5)
 #
-$MyPort = (Get-PnpDevice -Class Ports -PresentOnly -FriendlyName "USB-SERIAL*").Name
-Write-Debug $MyPort
+$RelayPort = (Get-PnpDevice -Class Ports -PresentOnly -FriendlyName "USB-SERIAL*").Name
+Write-Debug $RelayPort
 #
 # We need to get a text between brackets
 # This is a regex to detect such text
+#
 $SearchPattern = '(?<=\().+?(?=\))'
-$ComPort = [regex]::Matches($MyPort, $SearchPattern).Value
+$ComPort = [regex]::Matches($RelayPort, $SearchPattern).Value
 #
 Write-Debug "Relay connected to $ComPort"
-# LCOS commands
-[Byte[]] $PowerOn = 0xA0, 0x01, 0x01, 0xA2
-[Byte[]] $PowerOff = 0xA0, 0x01, 0x00, 0xA1
+#
 # Init dialog
+#
 $MenuTitle = "Command to control HDD power via $ComPort"
-$MenuPrompt = "Select your command:"
+$MenuPrompt = "Your choice:"
 $PowerUp = New-Object System.Management.Automation.Host.ChoiceDescription '&Up', 'Switch on HDD power'
 $PowerDown = New-Object System.Management.Automation.Host.ChoiceDescription '&Down', 'Switch off HDD power'
 $QuitMenu = New-Object System.Management.Automation.Host.ChoiceDescription '&Cancel', 'Cancel and Quit'
 $MenuChoices = [System.Management.Automation.Host.ChoiceDescription[]] @($PowerUp, $PowerDown, $QuitMenu)
 $MenuDefault = 2
-
+#
 # Prompt for the choice
+#
 $UserChoice = $host.UI.PromptForChoice($MenuTitle, $MenuPrompt, $MenuChoices, $MenuDefault)
-
+#
 # Action based on the choice
+#
 switch($UserChoice)
 {
     0 { Write-Host "Power up HDD"

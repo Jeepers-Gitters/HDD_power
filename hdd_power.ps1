@@ -1,5 +1,9 @@
 #
 # A0 01 01 A2 open relay, A0 01 00 A1 close relay (attention: commands' format must be hex)
+ param (
+    [Parameter()]
+    [string]$batch
+ )
 #
 # LCOS commands
 #
@@ -20,6 +24,7 @@ $UserQuit = 2
 #
 # $DebugPreference = "Continue"
 #
+# 
 function Write-ComPort {
     param (
       $Port,
@@ -54,7 +59,6 @@ Write-Debug "$CommPortsNumber COM ports detected: $CommPorts"
 # USB-SERIAL CH340 (COM5)
 #
 $RelayPort = (Get-PnpDevice -Class Ports -PresentOnly -FriendlyName "USB-SERIAL*").Name
-Write-Debug $RelayPort
 #
 # We need to get a text between brackets
 # This is a regex to detect such text
@@ -63,6 +67,18 @@ $SearchPattern = '(?<=\().+?(?=\))'
 $ComPort = [regex]::Matches($RelayPort, $SearchPattern).Value
 #
 Write-Debug "Relay connected to $ComPort"
+# Check which mode to run - if no $batch then it's menu mode
+# if $batch && Up - PowerOn
+# if $batch && Down - PowerOff
+# $PSBoundParameters 
+if ( $batch ) {
+    if ( $batch -eq "Up" ) {
+         Write-Debug "Powering HDD in batch mode."
+         Write-ComPort -Port $ComPort -Action $PowerOn
+         exit $ScriptSuccess
+    } elseif ( $batch -eq "Down" ) { Write-Host "Not implemented mode $batch, entering menu mode." }
+        else { Write-Host "Wrong parameters supplied, entering menu mode." }
+} else { Write-Host "No parameters supplied, entering menu mode." }
 #
 # Init dialog
 #

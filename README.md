@@ -1,3 +1,4 @@
+[![Hits](https://hits.sh/github.com/Jeepers-Gitters/HDD_power.svg)](https://hits.sh/github.com/Jeepers-Gitters/HDD_power/)
 # Powershell script for internal HDD power control via USB Relay Module 
 USB Relay Module is based on CH340 chip (LCUS) <http://www.chinalctech.com/m/view.php?aid=131>.
 

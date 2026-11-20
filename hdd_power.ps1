@@ -37,12 +37,12 @@ function Write-ComPort {
   #
   $SerialPort.Open()
   [string]$CheckPortInit = $SerialPort.BaudRate, $SerialPort.DataBits, $SerialPort.Parity, $SerialPort.StopBits
-  Write-Debug "Port $Port settings:$CheckPortInit"
+  Write-Debug "Port $Port open, settings:$CheckPortInit"
   $SerialPort.Write($Action, 0, $Action.Count)
   $CommandSent = [System.BitConverter]::ToString($Action)
   Write-Debug "Command $CommandSent sent to $Port"
   $SerialPort.Close()
-  Write-Debug "$Port closed."
+  Write-Debug "Port $Port closed."
   }
 #
 # Procedure to detect USB-COM assignment
@@ -69,7 +69,7 @@ $ComPort = [regex]::Matches($RelayPort, $SearchPattern).Value
 Write-Debug "Relay connected to $ComPort"
 # Check which mode to run - if no $batch then it's menu mode
 # if $batch && Up - PowerOn
-# if $batch && Down - PowerOff
+# if $batch && Down - PowerOff - not implemented yet as no way to eject intenal SATA drive at the moment. Must be done mnanually.
 # $PSBoundParameters 
 if ( $batch ) {
     if ( $batch -eq "Up" ) {
@@ -98,13 +98,15 @@ $UserChoice = $host.UI.PromptForChoice($MenuTitle, $MenuPrompt, $MenuChoices, $M
 #
 switch($UserChoice)
 {
-    0 { Write-Host "Power up HDD"
+    0 { 
+		Write-Host "Power up HDD"
         $Action = $PowerOn
         }
     1 { Write-Host "Power down HDD"
         $Action = $PowerOff
         }
     2 { Write-Host "Cancel and quit"
+		Start-Sleep -Seconds 3
         exit $UserQuit
         }
 }

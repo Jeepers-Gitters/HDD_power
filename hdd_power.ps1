@@ -47,6 +47,8 @@ function Write-ComPort {
 #
 # Procedure to detect USB-COM assignment
 # 
+# Script name for event LogName
+[string]$ScriptName = $MyInvocation.MyCommand.Name
 $CommPorts=[string[]]@([System.IO.Ports.SerialPort]::getportnames())
 $CommPortsNumber = $CommPorts.Count
 if ( $CommPortsNumber -eq 0 ) {
@@ -101,17 +103,24 @@ switch($UserChoice)
     0 { 
 		Write-Host "Power up HDD"
         $Action = $PowerOn
+		$EventMessage = $PowerUp.HelpMessage 
         }
     1 { Write-Host "Power down HDD"
         $Action = $PowerOff
+		$EventMessage = $PowerDown.HelpMessage
         }
     2 { Write-Host "Cancel and quit"
+		$Action = $DoNothing
+		$EventMessage = $QuitMenu.HelpMessage
 		Start-Sleep -Seconds 3
         exit $UserQuit
         }
 }
 
 Write-ComPort -Port $ComPort -Action $Action
+#Import-Module Microsoft.PowerShell.Management -UseWindowsPowerShell
+#New-EventLog -LogName Application -Source $ScriptName
+Write-EventLog -LogName Application -Source $ScriptName -EventId 105 -EntryType Information -Message $EventMessage
 Write-Host "Done!"
-Start-Sleep -Seconds 3
+Start-Sleep -Seconds 5
 exit $ScriptSuccess
